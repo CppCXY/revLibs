@@ -6,7 +6,7 @@ import json
 import asyncio
 
 from plugins.revLibs.pkg.models.interface import RevLibInterface
-from EdgeGPT import Chatbot, ConversationStyle, ChatHub, Conversation
+from EdgeGPT import Chatbot, ConversationStyle, _ChatHub, _Conversation
 
 
 ref_num_loop = ['¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '¹⁰', '¹¹', '¹²', '¹³', '¹⁴', '¹⁵', '¹⁶', '¹⁷', '¹⁸', '¹⁹',
@@ -111,7 +111,7 @@ class EdgeGPTImpl(RevLibInterface):
         Reset the conversation
         """
         await chatbot.close()
-        chatbot.chat_hub = ChatHub(Conversation(cookies=chatbot.cookies, proxy=chatbot.proxy))
+        chatbot.chat_hub = _ChatHub(_Conversation(cookies=chatbot.cookies, proxy=chatbot.proxy))
 
     def rollback(self):
         pass
