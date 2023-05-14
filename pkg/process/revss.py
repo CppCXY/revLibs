@@ -2,7 +2,6 @@
 from plugins.revLibs.pkg.models.interface import RevLibInterface
 from plugins.revLibs.pkg.process.impls.v1impl import RevChatGPTV1
 from plugins.revLibs.pkg.process.impls.edgegpt import EdgeGPTImpl
-from plugins.revLibs.pkg.process.impls.hugchat import HugChatImpl
 import pkg.openai.dprompt as dprompt
 import uuid
 import time
@@ -15,7 +14,6 @@ import config
 __sessions__ = {}
 """所有session"""
 
-__rev_interface_impl_class__: RevLibInterface = None
 
 class RevSession:
     name: str
@@ -39,24 +37,21 @@ class RevSession:
 
     getting_reply: bool = False
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, impl_class: RevLibInterface):
         self.name = name
-        if __rev_interface_impl_class__ is RevChatGPTV1:
+        self.__impl_class = impl_class
+        if impl_class is RevChatGPTV1:
             logging.debug("[rev] 逆向接口实现为RevChatGPTV1")
-            self.__rev_interface_impl__, valid, acc = __rev_interface_impl_class__.create_instance()
+            self.__rev_interface_impl__, valid, acc = impl_class.create_instance()
             self.using_account = acc
             self.reset()
-        elif __rev_interface_impl_class__ is EdgeGPTImpl:
+        elif impl_class is EdgeGPTImpl:
             logging.debug("[rev] 逆向接口实现为EdgeGPTImpl")
-            self.__rev_interface_impl__,_,_ = __rev_interface_impl_class__.create_instance()
-            self.reset()
-        elif __rev_interface_impl_class__ is HugChatImpl:
-            logging.debug("[rev] 逆向接口实现为HugChatImpl")
-            self.__rev_interface_impl__,_,_ = __rev_interface_impl_class__.create_instance()
-            self.reset()
+            self.__rev_interface_impl__, _, _ = impl_class.create_instance()
+            # 为什么要重置会话
+            # self.reset()
 
         threading.Thread(target=self.check_expire_loop, daemon=True).start()
-
 
     def check_expire_loop(self):
         while True:
@@ -80,32 +75,32 @@ class RevSession:
             raise Exception("逆向接口未初始化")
 
         self.last_interaction_time = int(time.time())
-        
+
         self.__ls_prompt__ = prompt
         if self.conversation_id is not None:
             kwargs['conversation_id'] = self.conversation_id
-        
+
         using_name = dprompt.mode_inst().get_using_name()
         dprompt_, _ = dprompt.mode_inst().get_prompt(using_name)
         if self.__set_prompt__ != "":
             dprompt_ = self.__set_prompt__
             self.__set_prompt__ = ""
-            
-        if dprompt_ != "" and self.conversation_id is None and __rev_interface_impl_class__ is not EdgeGPTImpl:  # new bing不使用情景预设
+
+        if dprompt_ != "" and self.conversation_id is None:
             if type(dprompt_) == list:
                 dprompt_ = dprompt_[0]['content']
-            prompt = dprompt_ +" \n"+ prompt
+            prompt = dprompt_ + " \n" + prompt
             logging.info("[rev] 使用情景预设: {}".format(dprompt_))
 
         # 改成迭代器以支持回复分节
         for reply_period_msg, reply_period_dict in self.__rev_interface_impl__.get_reply(prompt, **kwargs):
-            if __rev_interface_impl_class__ is RevChatGPTV1:
+            if self.__impl_class is RevChatGPTV1:
                 self.conversation_id = reply_period_dict['conversation_id']
             else:
                 self.conversation_id = uuid.uuid4().hex
-                
+
             yield reply_period_msg
-        
+
         self.getting_reply = False
 
     def reset(self, using_prompt_name: str = None) -> str:
@@ -126,13 +121,23 @@ class RevSession:
         """重新发送上一条消息"""
         self.__rev_interface_impl__.rollback()
         import plugins.revLibs.pkg.process.procmsg as procmsg  # 不优雅的解决办法
-        return procmsg.process_message(self.name, self.__ls_prompt__, None, launcher_type=self.name.split("_")[0], launcher_id=int(self.name.split("_")[1]))
-        
-    
-    
-def get_session(name: str) -> RevSession:
+        return procmsg.process_message(self.name, self.__ls_prompt__, None, launcher_type=self.name.split("_")[0],
+                                       launcher_id=int(self.name.split("_")[1]))
+
+
+def get_session(name: str, who) -> RevSession:
     """获取session"""
+    name = name + who
     if name not in __sessions__:
-        # 创建session
-        __sessions__[name] = RevSession(name)
+        if who == "newbing":
+            import plugins.revLibs.pkg.process.impls.edgegpt as edgegpt
+            # 创建session
+            __sessions__[name] = RevSession(name, edgegpt.EdgeGPTImpl)
+            return __sessions__[name]
+        elif who == "gpt4":
+            import plugins.revLibs.pkg.process.impls.v1impl as v1impl
+            # 创建session
+            __sessions__[name] = RevSession(name, v1impl.RevChatGPTV1)
+            return __sessions__[name]
+
     return __sessions__[name]

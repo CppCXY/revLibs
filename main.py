@@ -40,7 +40,6 @@ def check_config():
 # 注册插件
 @register(name="revLibs", description="接入acheong08/ChatGPT等逆向库", version="0.6.0", author="RockChinQ")
 class RevLibsPlugin(Plugin):
-
     chatbot: Chatbot = None
 
     # 插件加载时触发
@@ -63,55 +62,24 @@ class RevLibsPlugin(Plugin):
         if not hasattr(revcfg, "new_bing_style"):
             setattr(revcfg, "new_bing_style", ConversationStyle.balanced)
 
-        try:
-            if revcfg.reverse_lib == "acheong08/ChatGPT.V1":
-                import plugins.revLibs.pkg.process.impls.v1impl as v1impl
-
-                v1implInst = v1impl.RevChatGPTV1
-
-                import plugins.revLibs.pkg.process.revss as revss
-                revss.__rev_interface_impl_class__ = v1implInst
-                logging.info("[rev] 已加载逆向库acheong08/ChatGPT.V1, 使用接口实现类: " + str(v1implInst))
-            elif revcfg.reverse_lib == "acheong08/EdgeGPT":
-                import plugins.revLibs.pkg.process.impls.edgegpt as edgegpt
-
-                edgegptInst = edgegpt.EdgeGPTImpl
-
-                import plugins.revLibs.pkg.process.revss as revss
-                revss.__rev_interface_impl_class__ = edgegptInst
-                logging.info("[rev] 已加载逆向库acheong08/EdgeGPT, 使用接口实现类: " + str(edgegptInst))
-            elif revcfg.reverse_lib == "Soulter/hugging-chat-api":
-                import plugins.revLibs.pkg.process.impls.hugchat as hugchat
-
-                hugchatInst = hugchat.HugChatImpl
-
-                import plugins.revLibs.pkg.process.revss as revss
-                revss.__rev_interface_impl_class__ = hugchatInst
-                logging.info("[rev] 已加载逆向库Soulter/hugging-chat-api, 使用接口实现类: " + str(hugchatInst))
-            else:
-                logging.error("[rev] 未知的逆向库: " + revcfg.reverse_lib + ", 请检查配置文件是否填写正确或尝试更新逆向库插件")
-                time.sleep(5)
-                return
-        except:
-            # 输出完整的错误信息
-            # plugin_host.notify_admin("[rev] 逆向库初始化失败，请检查配置文件(revcfg.py)是否正确")
-            logging.error("[rev] 逆向库初始化失败，请检查配置文件(revcfg.py)是否正确")
-            logging.error("[rev] " + traceback.format_exc())
-            return
-
         import config
 
         revcfg.process_message_timeout = config.process_message_timeout
-        config.process_message_timeout = 10*60
+        config.process_message_timeout = 10 * 60
         logging.info("[rev] 已将主程序消息处理超时时间设置为10分钟")
 
+        allow_role = {"newbing", "gpt4"}
         @on(PersonNormalMessageReceived)
         @on(GroupNormalMessageReceived)
         def normal_message_received(inst, event: EventContext, **kwargs):
             reply_message = ""
             try:
-                reply_message = procmsg.process_message(session_name=kwargs['launcher_type']+"_"+str(kwargs['launcher_id']),
-                                                        prompt=kwargs['text_message'], **kwargs)
+                if kwargs["who"] not in allow_role:
+                    return
+
+                reply_message = procmsg.process_message(
+                    session_name=kwargs['launcher_type'] + "_" + str(kwargs['launcher_id']),
+                    prompt=kwargs['text_message'], **kwargs)
 
                 logging.debug("[rev] " + reply_message)
 
@@ -120,24 +88,15 @@ class RevLibsPlugin(Plugin):
                 logging.error("[rev] " + traceback.format_exc())
                 import config
                 if config.hide_exce_info_to_user:
-                    reply_message = ''
-                    try:
-                        import tips
-                        reply_message = tips.alter_tip_message
-                    except:
-                        if hasattr(config, "alter_tip_message"):
-                            reply_message = config.alter_tip_message
-                        else:
-                            reply_message = "处理消息时出现错误，请联系管理员"
-
-                    kwargs['host'].notify_admin("[rev] 处理消息时出现错误:\n"+traceback.format_exc())
+                    reply_message = config.alter_tip_message
+                    kwargs['host'].notify_admin("[rev] 处理消息时出现错误:\n" + traceback.format_exc())
                 else:
-                    reply_message = "处理消息时出现错误，请联系管理员"+"\n"+traceback.format_exc()
-                
+                    reply_message = "处理消息时出现错误，请联系管理员" + "\n" + traceback.format_exc()
+
             if reply_message != "":
                 event.add_return(
                     "reply",
-                    ["{}".format(revcfg.reply_prefix)+reply_message]
+                    ["{}\n\n[{}]".format(reply_message, kwargs["who"])]
                 )
 
             event.prevent_default()
@@ -148,18 +107,22 @@ class RevLibsPlugin(Plugin):
         def command_send(inst, event: EventContext, **kwargs):
             reply_message = ""
             try:
-                reply_message = proccmd.process_command(session_name=kwargs['launcher_type']+"_"+str(kwargs['launcher_id']),
-                                                        **kwargs)
+                if kwargs["who"] not in allow_role:
+                    return
+
+                reply_message = proccmd.process_command(
+                    session_name=kwargs['launcher_type'] + "_" + str(kwargs['launcher_id']),
+                    **kwargs)
 
                 logging.debug("[rev] " + reply_message)
             except Exception as e:
                 logging.error("[rev] " + traceback.format_exc())
-                reply_message = "处理命令时出现错误，请联系管理员"+"\n"+traceback.format_exc()
-            
+                reply_message = "处理命令时出现错误，请联系管理员" + "\n" + traceback.format_exc()
+
             if reply_message.strip() != "":
                 event.add_return(
                     "reply",
-                    ["{}(cmd)".format(revcfg.reply_prefix)+reply_message],
+                    ["{}(cmd)".format(revcfg.reply_prefix) + reply_message],
                 )
                 event.prevent_default()
                 event.prevent_postorder()
