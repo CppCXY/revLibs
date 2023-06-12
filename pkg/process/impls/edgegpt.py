@@ -44,6 +44,7 @@ class EdgeGPTImpl(RevLibInterface):
         logging.debug("[rev] 初始化接口实现，使用账户cookies: {}".format(str(cookies)[:30]))
         self.chatbot = Chatbot(cookies=cookies, proxy=proxy)
         self.style = style
+        self.cookies = cookies
         self.proxy = proxy
         # 随机一个uuid作为实例名
         import uuid
@@ -111,7 +112,7 @@ class EdgeGPTImpl(RevLibInterface):
         Reset the conversation
         """
         await chatbot.close()
-        chatbot.chat_hub = _ChatHub(_Conversation(cookies=chatbot.cookies, proxy=chatbot.proxy))
+        chatbot.chat_hub = _ChatHub(_Conversation(cookies=self.cookies, proxy=self.proxy))
 
     def rollback(self):
         pass
