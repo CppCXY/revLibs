@@ -9,14 +9,13 @@ from EdgeGPT.EdgeGPT import Chatbot
 from EdgeGPT.chathub import ChatHub
 from EdgeGPT.conversation import Conversation
 from EdgeGPT.conversation_style import ConversationStyle
-
 from plugins.revLibs.pkg.models.interface import RevLibInterface
 # from EdgeGPT import Chatbot, ConversationStyle, _ChatHub, _Conversation
 
 
 ref_num_loop = ['¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '¹⁰', '¹¹', '¹²', '¹³', '¹⁴', '¹⁵', '¹⁶', '¹⁷', '¹⁸', '¹⁹',
                 '²⁰']
-
+flag_once = False
 
 class EdgeGPTImpl(RevLibInterface):
     """使用acheong08/EdgeGPT接入new bing
@@ -37,6 +36,16 @@ class EdgeGPTImpl(RevLibInterface):
         cookies_dict = {}
         with open("cookies.json", "r", encoding="utf-8") as f:
             cookies_dict = json.load(f)
+            global flag_once
+            if not flag_once:
+                flag_once = True
+                from EdgeGPT.constants import HEADERS
+                ws_cookies = []
+                for cookie in cookies_dict.cookies:
+                    ws_cookies.append(f"{cookie['name']}={cookie['value']}")
+                HEADERS.update({
+                    'Cookie': ';'.join(ws_cookies),
+                })
 
         import revcfg
 
@@ -116,8 +125,9 @@ class EdgeGPTImpl(RevLibInterface):
         """
         Reset the conversation
         """
-        await chatbot.close()
-        chatbot.chat_hub = ChatHub(Conversation(cookies=self.cookies, proxy=self.proxy))
+        chatbot.reset()
+        # await chatbot.close()
+        # chatbot.chat_hub = ChatHub(Conversation(cookies=self.cookies, proxy=self.proxy))
 
     def rollback(self):
         pass
