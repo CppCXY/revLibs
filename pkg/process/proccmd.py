@@ -22,7 +22,7 @@ def process_command(session_name: str, **kwargs) -> str:
     elif cmd == "style":
         if kwargs["who"] == "newbing":
             import revcfg
-            from EdgeGPT import ConversationStyle
+            from EdgeGPT.conversation_style import ConversationStyle
             if len(params) >= 1:
 
                 mapping = {

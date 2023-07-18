@@ -5,8 +5,13 @@ import logging
 import json
 import asyncio
 
+from EdgeGPT.EdgeGPT import Chatbot
+from EdgeGPT.chathub import ChatHub
+from EdgeGPT.conversation import Conversation
+from EdgeGPT.conversation_style import ConversationStyle
+
 from plugins.revLibs.pkg.models.interface import RevLibInterface
-from EdgeGPT import Chatbot, ConversationStyle, _ChatHub, _Conversation
+# from EdgeGPT import Chatbot, ConversationStyle, _ChatHub, _Conversation
 
 
 ref_num_loop = ['¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '¹⁰', '¹¹', '¹²', '¹³', '¹⁴', '¹⁵', '¹⁶', '¹⁷', '¹⁸', '¹⁹',
@@ -112,7 +117,7 @@ class EdgeGPTImpl(RevLibInterface):
         Reset the conversation
         """
         await chatbot.close()
-        chatbot.chat_hub = _ChatHub(_Conversation(cookies=self.cookies, proxy=self.proxy))
+        chatbot.chat_hub = ChatHub(Conversation(cookies=self.cookies, proxy=self.proxy))
 
     def rollback(self):
         pass
