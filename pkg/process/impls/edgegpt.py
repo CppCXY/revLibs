@@ -41,7 +41,7 @@ class EdgeGPTImpl(RevLibInterface):
                 flag_once = True
                 from EdgeGPT.constants import HEADERS
                 ws_cookies = []
-                for cookie in cookies_dict.cookies:
+                for cookie in cookies_dict:
                     ws_cookies.append(f"{cookie['name']}={cookie['value']}")
                 HEADERS.update({
                     'Cookie': ';'.join(ws_cookies),
