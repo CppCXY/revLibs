@@ -120,14 +120,7 @@ class EdgeGPTImpl(RevLibInterface):
 
     def reset_chat(self):
         # workaround for edgeGPT
-        asyncio.run(self.reset(self.chatbot))
-    async def reset(self, chatbot) -> None:
-        """
-        Reset the conversation
-        """
-        chatbot.reset()
-        # await chatbot.close()
-        # chatbot.chat_hub = ChatHub(Conversation(cookies=self.cookies, proxy=self.proxy))
+        asyncio.run(self.chatbot.reset)
 
     def rollback(self):
         pass
